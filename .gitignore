@@ -1,0 +1,5 @@
+.idea/*
+/model/*
+libdarknet.so
+/thirdparty/mmpose
+

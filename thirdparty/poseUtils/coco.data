@@ -1,0 +1,4 @@
+classes= 80
+#train  =
+#valid  =
+names = /home/guest/lsc/project/yolov4/darknet/data/coco.names
