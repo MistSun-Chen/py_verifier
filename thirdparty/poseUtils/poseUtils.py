@@ -124,10 +124,10 @@ def getPose(img, personBoxes, poseModel):
             px, py, pc = detPoint
             px = int(px)
             py = int(py)
-            pc = int(pc)
+            # pc = int(pc)
             if (px == 0 and py == 0) or (px < 0 or py < 0):
                 points.append(None)
             else:
-                points.append((px + x, py + y))
+                points.append((px + x, py + y,pc))
         res.append(points)
     return res

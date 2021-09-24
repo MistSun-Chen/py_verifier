@@ -27,7 +27,8 @@ class Error:
     FINDER_SMOKEFIRE_DETECT_SUCCESS = (0, "smoke fire detect success")
     FINDER_REGIONINVADE_DETECT_SUCCESS = (0, "region invade detect success")
     FINDER_HOVER_DETECT_SUCCESS = (0, "hover detect success")
-    FINDER_PEOPLESMOKE_DETECT_SUCCESS = (0, "people smoke detect success")
+
+
     FINDER_CHANNELOCCUPY_DETECT_SUCCESS = (0, "channel occupy detect success")
     FINDER_ITEMSTEAL_DETECT_SUCCESS = (0, "item steal detect success")
     FINDER_ITEAMSTRAND_DETECT_SUCCESS = (0, "item strand detect success")
@@ -38,11 +39,21 @@ class Error:
     FINDER_THINGS_DETECT_SUCCESS = (0, "things detect success")
     FINDER_RACEPREDICT_SUCCESS = (0, "race predict success")
     FINDER_PERSONATTR_SUCCESS = (0, "face_attr success")
-    FINDER_POSE_DETECT_SUCCESS = (0, "pose detect success")
+
     FINDER_GAS_DETECT_SUCCESS = (0, "gas detect success")
     FINDER_GOGGLES_DETECT_SUCCESS = (0, "googles detect success")
 
+    #complete interface
     FINDER_GENERAL_DETECT_SUCCESS = (0,"general detect success")
+    FINDER_POSE_DETECT_SUCCESS = (0, "pose detect success")
+
+    #plan to complete interface
+    FINDER_PEOPLESMOKE_CLASSIFY_SUCCESS = (0, "people smoke classify success")
+    FINDER_PEOPLEPHONE_CLASSIFY_SUCCESS = (0, "people phone classify success")
+    FINDER_SMOKEPHONE_CLASSIFY_SUCCESS = (0, "people smoke&phone classify success")
+    FINDER_TRACKCOAL_SUCCESS = (0, "track coal detect success")
+
+
 
 
     FINDER_API_KEY_INVALID  = (20001, "api key_invalid")
@@ -56,3 +67,4 @@ class Error:
     FINDER_PARAMETERS_EMPTY = (20009, "parameters empty")
     FINDER_NOT_AUTHORIZED  = (20010, "not authorized")
     FINDER_NOT_INTERFACE_ID  = (20011, "interface id not exist")
+    FINDER_IMG_NUM_ERROR = (20012,"the number of img error")

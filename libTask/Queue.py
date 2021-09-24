@@ -1,10 +1,13 @@
 from common.configParams import ConfigParams
+from common import common
+from common.log import log
 import queue
 from threading import Thread
-# from libTask.HandlerFactory import handlerFactoryInstance
-from libTask.HandlerFactory import HandlerFactory
+from libTask.HandlerFactory import handlerFactoryInstance
+# from libTask.HandlerFactory import HandlerFactory
 from zmqtest.asyncsrv import tprint
 import zmq
+import traceback
 
 class Worker(Thread):
     def __init__(self, queue, gpu_id, gpu_num, handler_id, model_path, cp):
@@ -16,30 +19,31 @@ class Worker(Thread):
         self.model_path = model_path
         self.status = True
         self.cp = cp
+        self.log = log(common.LOG_LEVEL)
 
 
 
     def run(self):
         if self.cp.CPU == 1:
-            tprint("Worker::Run CPU")
+            self.log.info("Worker::Run CPU")
             #TODO:之前此处设置caffe的CPU工作模式
         else:
-            tprint("Worker::Run GPU {}".format(str(self.gpu_id)))
+            self.log.info("Worker::Run GPU {}".format(str(self.gpu_id)))
             #TODO：之前此处设置caffe的GPU工作模式，并根据gpu_id数加载模型
 
-        handlerFactoryInstance = HandlerFactory()
+        # handlerFactoryInstance = HandlerFactory()
         handler = handlerFactoryInstance.create(self.handler_id,self.model_path,self.cp,str(self.gpu_id),self.gpu_num)
         if handler is None:
             return
 
         while self.status:
             try:
-                message = self.queue.get()
+                message = self.queue.get(60)
                 if message:
                     response = handler.handle(message)
                     # tprint("handler response is {}".format(str(response)))
                     # tprint("ending queue handle")
-                    tprint("zmqServer start sending result message")
+                    self.log.debug("zmqServer start sending result message")
 
                     socket = message.zmqSender.context.socket(zmq.DEALER)
                     # tprint("end create socket ")
@@ -49,7 +53,7 @@ class Worker(Thread):
                     # tprint("end sending")
                     #此处必须加close()
 
-                    tprint("zmqServer complete sending result message")
+                    self.log.debug("zmqServer complete sending result message")
                     socket.close()
 
 
@@ -80,26 +84,39 @@ class DQueue:
         self.handler_id = handler_id
         self.cp = cp
         self.model_path = model_path
+        self.log = log(common.LOG_LEVEL)
         try:
             for i in range(self.worker_count):
                 # TODO:此处原来依靠caffe模块检测GPU设备是否可用，输出不可用GPU编号
                 # 对于不可用gpu直接continue
                 # 对于可用gpu，我们new
 
-                tprint("worker_count : {}/{}".format(i, self.worker_count - 1))
+                self.log.info("worker_count : {}/{}".format(i, self.worker_count - 1))
                 worker = Worker(self.msg_list, self.gpus[i], self.gpu_num, self.handler_id, self.model_path, self.cp)
                 worker.start()
-                print("Dispatcher Num {} worker thread start  ".format(self.handler_id))
+                self.log.info("Dispatcher Num {} worker thread start  ".format(self.handler_id))
                 self.threads.append(worker)
 
         except Exception as e:
-            tprint("Thread init failed!")
-            tprint(e)
+            self.log.error("Thread init failed!")
+            self.log.error(e)
+            self.log.error(traceback.format_exc())
+            
 
 
 
     def push(self,message):
+        #消息进队列
         self.msg_list.put(message)
+
+        #查看当前消息队列中的消息数量，数量挤压太多显然不正常
+        if self.msg_list.qsize() >= 100:
+            self.log.error("There are already over 100 requests in {} Queue".format(common.Handl_dict[self.handler_id]))
+        elif self.msg_list.qsize() >= 20:
+            self.log.warning("There are already over 20 requests in {} Queue".format(common.Handl_dict[self.handler_id]))
+
+
+
         return 0
 
 
@@ -117,7 +134,7 @@ class DQueue:
         self.status = False
         for i in self.threads:
             if i is not None:
-                i.join()
+                i.status = False
 
 
         pass

@@ -3,7 +3,8 @@ import argparse
 from common.configParams import ConfigParams
 from zmqServer.zmqServer import ZmqServer
 from zmqtest.asyncsrv import tprint
-
+from common.common import mylog
+import traceback
 
 def main_dealer():
     print("Current libzmq version is %s" % zmq.zmq_version())
@@ -15,16 +16,20 @@ def main_dealer():
     try:
         cp = ConfigParams(args.configPath)
     except Exception as e:
-        print(e)
+        mylog.error(str(e))
+        mylog.error(traceback.format_exc())
+
 
     cp.printParams()
     try:
         zmqServer = ZmqServer(cp)
         zmqServer.start()
-        tprint("run to the end of zmqServer")
+        mylog.info("run to the end of zmqServer")
         # zmqServer.shutdown()
     except Exception as e:
-        tprint("ZMQServer Error "+str(e))
+        mylog.error("ZMQServer Error {}".format(str(e)))
+        mylog.error(traceback.format_exc())
+
 
 
 

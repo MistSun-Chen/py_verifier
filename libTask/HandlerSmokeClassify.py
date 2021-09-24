@@ -3,23 +3,22 @@ import os
 from zmqtest.asyncsrv import tprint
 from common.error import Error
 from zmqServer.zmqMessage import ZmqMessage
-from thirdparty.poseUtils.poseUtils import (getModel,getPose)
+from thirdparty.classificationUtils.classificationUtils import (getModel,getPredict)
 import numpy as np
 import base64
 import cv2
 import torch
 import time
-from common import common
-from common.log import log
+from PIL import Image
 
-class HandlerPoseDetect(HandlerBase):
+class HandlerSmokeClassify(HandlerBase):
     def __init__(self,cp,modelPath="",gpuID:str="0",gpuNums=1):
-        super(HandlerPoseDetect, self).__init__()
+        super(HandlerSmokeClassify, self).__init__()
         self.cp = cp
         self.modelPath = modelPath
         self.gpuID = gpuID
         self.gpuNums=gpuNums
-        self.log = log(common.LOG_LEVEL)
+
         self.setApiKey(cp.api_key)
         self.preDetect(modelPath)
 
@@ -29,7 +28,7 @@ class HandlerPoseDetect(HandlerBase):
         # USE_LICENSE
         # NOT USE_LICENSE
 
-        return self.poseDetect(message.st,message.timePoint)
+        return self.smokeClassify(message.st,message.timePoint)
 
 
 
@@ -43,25 +42,27 @@ class HandlerPoseDetect(HandlerBase):
         :param gpuNums:暂时未用到
         :return:
         """
-        path = os.path.join(modelPath,"pose_detect")
-        self.posemodel = os.path.join(path,"hrnet_w32_coco_256x192_udp-aba0be42_20210220.pth")
-        self.poseconfig = os.path.join(path,"hrnet_w32_coco_256x192_udp.py")
-        # print("posemodel Path is {}".format(self.posemodel))
-        # print("pose config Path is {}".format(self.poseconfig))
+        path = os.path.join(modelPath,"smoke_class")
+        self.smokeModelPath = os.path.join(path,"smoke_resnet_219.pth")
+        # print("smokeModelPath Path is {}".format(self.helmetModelPath))
+
+        #TODO:debug cpu model
+        # self.device = select_device('cpu')
+
+        self.metaPath = os.path.join(path,'smoke_classIndices.json')
+
+        tprint("smoke model device init ")
+        if self.gpuID != "cpu":
+            self.device = "cuda:" + self.gpuID
+        else:
+            self.device = "cpu"
+
+        tprint("smoke model load start")
+        self.model = getModel(2,self.smokeModelPath,self.device)
+        tprint("smoke model load end")
 
 
-
-
-        self.log.info("pose device init ")
-        device = "cuda:"+self.gpuID
-        # device = "cpu"
-        self.log.info("pose model load start")
-
-        self.model = getModel(self.poseconfig,self.posemodel,device)
-        self.log.info("pose model load end")
-
-
-    def poseDetect(self,request,timePoints):
+    def smokeClassify(self,request,timePoints):
         """
         功  能：对图片数据进行预处理；对图片检测结果进行汇总
 
@@ -69,13 +70,13 @@ class HandlerPoseDetect(HandlerBase):
         :param timePoints:时间打点
         :return:返回图片识别结果，耗时和错误信息
         """
-        interfaceName = "poseDetect"
+
+        interfaceName = "smokeClassify"
 
         #validate可以直接省略
         responseBody = self.validate(interfaceName,request)
 
-
-        # self.log.debug("request is : "+str(request))
+        # tprint("request is : "+str(request))
         request_id = ""
 
         if "request_id" in request and isinstance(request["request_id"],str):
@@ -92,9 +93,6 @@ class HandlerPoseDetect(HandlerBase):
             responseBody = self.fillResponse(interfaceName,{},request_id,Error.FINDER_PARAMETERS_ERROR)
             return responseBody
 
-        if len(request["image_base64"]) == 0:
-            return self.fillResponse(interfaceName, {}, request_id, Error.FINDER_IMG_NUM_ERROR)
-
 
         #TODO:原有的步骤会从base64的图片数据转成cv的mat格式
         #pass
@@ -102,6 +100,7 @@ class HandlerPoseDetect(HandlerBase):
 
         #返回格式
         res = {}
+
 
         #TODO:根据规定的传输格式接收发送数据
         #base64解码
@@ -111,49 +110,36 @@ class HandlerPoseDetect(HandlerBase):
 
         assert nparr.shape[0] != 0,"receive empty image"
 
-        de_start = time.time()
         #decode
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        de_end = time.time()
+        img_BGR = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+
+        #transfer BGR to RGB
+        img_RGB = cv2.cvtColor(img_BGR, cv2.COLOR_BGR2RGB)
+        img = Image.fromarray(img_RGB)
+
+
+
 
         torch.cuda.synchronize()
         start = time.time()
-        if "person_boxes" not in request:
-            h, w, c = img.shape
 
-            x = w / 2
-            y = h / 2
-            w = w
-            h = h
-            personBoxes = [[x, y, w, h]]
-            ret = getPose(img,personBoxes,self.model)
-        else:
-            ret = getPose(img,request["person_boxes"],self.model)
+        # XXX
+        ret = getPredict(img, self.metaPath, self.model, device=self.device)
+
         torch.cuda.synchronize()
-        end = time.time()
-        self.log.debug("pose image decode spend time {}".format(round((de_end-de_start)*1000,4)))
-        self.log.debug("pose detect spend time {}".format(round((end-start)*1000,4)))
+        end  = time.time()
+        tprint("smoke classify spend time {}".format(round((end-start)*1000,4)))
 
-        # ret = {"test":"sucess"}
-        # ret = {"test":"sucess"}
-        res["detect_info"] = []
-        for i in ret:
-            result = {}
-            result['pose_info'] =[]
-            for j in i:
-
-                result_pose= {}
-                result_pose['confidence']=j[2]
-                result_pose['x']=j[0]
-                result_pose['y']=j[1]
-                result['pose_info'].append(result_pose)
+        res = {}
 
 
-            res["detect_info"].append(result)
+        res["detect_info"]={
+            "type":ret[0],
+            "accuracy":ret[1]
+        }
 
-        # self.log.debug("HandlerposeDetect inference end")
-        res = self.fillResponse_(interfaceName,res,request_id,Error.FINDER_POSE_DETECT_SUCCESS,timePoints)
+        # tprint("HandlerhelmetDetect inference end")
+        res = self.fillResponse_(interfaceName,res,request_id,Error.FINDER_PEOPLESMOKE_CLASSIFY_SUCCESS,timePoints)
         return res
-
-
 

@@ -29,7 +29,7 @@ class HandlerGeneralDetect(HandlerBase):
 
 
 
-    def preDetect(self,modelPath,cp,gpuId,gpuNums):
+    def preDetect(self,modelPath):
         """
         推理前准备：
         1、初始化，加载模型和配置文件

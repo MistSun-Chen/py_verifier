@@ -1,7 +1,8 @@
 from common import common
-from libTask.HandlerGeneralDetect import HandlerGeneralDetect
 from libTask.HandlerHelmetDetect import HandlerHelmetDetect
 from libTask.HandlerPoseDetect import HandlerPoseDetect
+from libTask.HandlerSmokePhone import HandlerSmokePhone
+from libTask.HandlerTrackCoal import HandlerTrackCoal
 from zmqtest.asyncsrv import tprint
 class HandlerFactory:
 
@@ -20,16 +21,23 @@ class HandlerFactory:
         :param gpu_num:
         :return:
         """
-        if handler_id == common.PEOPLESMOKE_METHOD_ID:
-            return None
-        elif handler_id == common.PEOPLEPHONE_METHOD_ID:
-            return None
+        # if handler_id == common.PEOPLESMOKE_METHOD_ID:
+        #     #单独抽烟
+        #     return HandlerSmokeClassify(cp,path,gpu_id,gpu_num)
+        # elif handler_id == common.PEOPLEPHONE_METHOD_ID:
+        #     #单独打电话
+        #     return HandlerPhoneClassify(cp,path,gpu_id,gpu_num)
+        if handler_id == common.SMOKEPHONE_METHOD_ID:
+            #抽烟打电话
+            return HandlerSmokePhone(cp,path,gpu_id,gpu_num)
         elif handler_id == common.HELMET_METHOD_ID:
+            #安全帽
             return HandlerHelmetDetect(cp,path,gpu_id,gpu_num)
         elif handler_id == common.POSE_METHOD_ID:
+            #姿态
             return HandlerPoseDetect(cp,path,gpu_id,gpu_num)
-        elif handler_id == common.COAL_1_METHOD_ID:
-            return None
+        elif handler_id == common.TRACK_COAL_METHOD_ID:
+            return HandlerTrackCoal(cp,path,gpu_id,gpu_num)
         elif handler_id == common.COAL_2_METHOD_ID:
             return None
         else: return None
@@ -48,3 +56,4 @@ class HandlerFactory:
         pass
 
 
+handlerFactoryInstance = HandlerFactory()

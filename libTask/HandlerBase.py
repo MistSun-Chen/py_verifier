@@ -6,6 +6,8 @@ import json
 import datetime
 from zmqtest.asyncsrv import tprint
 from common.error import Error
+import traceback
+from common.common import mylog
 
 
 class HandlerBase(metaclass=ABCMeta):
@@ -50,14 +52,14 @@ class HandlerBase(metaclass=ABCMeta):
         else:
             response["request_id"] = request_id
 
-        response["time_used"] = round((time.time() - timePoints[0]) * 1000, 4)
+        response["time_used"] = int((time.time()-timePoints[0])*1000)
         if "error_id" not in response:
             response["error_id"] = errorMsg[0]
             if len(errorMsg[1]):
                 response["error_message"] = errorMsg[1]
 
         self.writeLog(interface, response, timePoints)
-        # tprint("fillResponse is " + json.dumps(response))
+        # mylog.info("fillResponse is " + json.dumps(response))
         return json.dumps(response)
 
     # /***********************************************************************************************************************
@@ -117,7 +119,17 @@ class HandlerBase(metaclass=ABCMeta):
     def writeLog(self, interface, resp, timePoints):
         timeLong = round((time.time() - timePoints[0]) * 1000, 4)
         timestr = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timePoints[0]))
-        tprint(
+
+        if timeLong >= 1000 or timeLong <0:
+            mylog.error(
+            "|Req Time: {},|Interface:{} ,|Time Used:{} ,ms|Result: {}".format(str(timestr), interface, str(timeLong),
+                                                                               str(resp)))
+        elif timeLong >= 500:
+            mylog.warning(
+            "|Req Time: {},|Interface:{} ,|Time Used:{} ,ms|Result: {}".format(str(timestr), interface, str(timeLong),
+                                                                               str(resp)))
+        else: 
+            mylog.debug(
             "|Req Time: {},|Interface:{} ,|Time Used:{} ,ms|Result: {}".format(str(timestr), interface, str(timeLong),
                                                                                str(resp)))
 
@@ -136,7 +148,8 @@ class HandlerBase(metaclass=ABCMeta):
                 return self.fillResponse(interface, {}, request_id, Error.FINDER_API_KEY_INVALID), value
             return None, value
         except Exception as e:
-            tprint(e)
+            mylog.error(e)
+            mylog.error(traceback.format_exc())
             # print(e)
             return self.fillResponse(interface, {}, request_id, Error.ERROR_JSON_SYNTAX), value
 
@@ -149,7 +162,8 @@ class HandlerBase(metaclass=ABCMeta):
                 return self.fillResponse(interface, {}, request_id, Error.FINDER_API_KEY_INVALID)
             return None
         except Exception as e:
-            tprint(e)
+            mylog.error(e)
+            mylog.error(traceback.format_exc())
             # print(e)
             return self.fillResponse(interface, {}, request_id, Error.ERROR_JSON_SYNTAX)
 
@@ -169,6 +183,6 @@ class HandlerBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def preDetect(self,modelPath,gpuId:str,gpuNums):
+    def preDetect(self,modelPath):
         pass
 
